@@ -6,7 +6,15 @@ export function ProfilePage() {
   const [showPreferenceOptions, setShowPreferenceOptions] = useState(false);
   const [preferredCategoryId, setPreferredCategoryId] = useState<string>(GAME_CATEGORIES[0]?.id ?? '');
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
+  const [onlineStatus, setOnlineStatus] = useState<'online' | 'offline' | 'playing'>('online');
   const preferredCategory = GAME_CATEGORIES.find((category) => category.id === preferredCategoryId);
+  const onlineStatusOptions = [
+    { id: 'online' as const, label: '上線中', bgColor: '#d1fae5', color: '#065f46' },
+    { id: 'offline' as const, label: '離線', bgColor: '#e8e8e8', color: '#6f7a70' },
+    { id: 'playing' as const, label: '正在遊玩', bgColor: '#dbeafe', color: '#1d4ed8' },
+  ];
+  const selectedOnlineStatus =
+    onlineStatusOptions.find((status) => status.id === onlineStatus) ?? onlineStatusOptions[0];
 
   return (
     <PageLayout>
@@ -65,7 +73,9 @@ export function ProfilePage() {
           </div>
           <div className="p-[16px] border-b border-[#e7e5e4]">
             <button
-              onClick={() => setShowPreferenceOptions((prev) => !prev)}
+              onClick={() => {
+                setShowPreferenceOptions((prev) => !prev);
+              }}
               className="w-full flex items-center justify-between"
             >
               <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940]">
@@ -140,8 +150,31 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="p-[16px]">
-            <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940]">
-              隱私設定
+            <div className="w-full flex items-center justify-between gap-[12px]">
+              <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940]">
+                上線狀態
+              </div>
+              <div className="relative">
+                <select
+                  value={onlineStatus}
+                  onChange={(event) => setOnlineStatus(event.target.value as 'online' | 'offline' | 'playing')}
+                  className="appearance-none rounded-[8px] border border-[rgba(111,122,112,0.2)] pl-[10px] pr-[28px] py-[8px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px]"
+                  style={{ backgroundColor: selectedOnlineStatus.bgColor, color: selectedOnlineStatus.color }}
+                >
+                  {onlineStatusOptions.map((status) => (
+                    <option key={status.id} value={status.id}>
+                      {status.label}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="size-[14px] absolute right-[8px] top-1/2 -translate-y-1/2 pointer-events-none"
+                  fill="none"
+                  viewBox="0 0 14 14"
+                >
+                  <path fill="#6f7a70" d="M3 5L7 9L11 5H3Z" />
+                </svg>
+              </div>
             </div>
           </div>
         </div>
