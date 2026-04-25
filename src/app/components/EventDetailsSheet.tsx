@@ -1,5 +1,7 @@
 import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { useState } from 'react';
+import { GAME_CATEGORIES } from '../constants/gameCategories';
+import { EXPLORE_DEMO_EVENTS } from '../constants/exploreDemoEvents';
 
 interface EventDetailsSheetProps {
   isOpen: boolean;
@@ -9,6 +11,8 @@ interface EventDetailsSheetProps {
 
 export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsSheetProps) {
   const [dragY, setDragY] = useState(0);
+  const selectedEvent = EXPLORE_DEMO_EVENTS.find((event) => event.id === eventId) ?? EXPLORE_DEMO_EVENTS[0];
+  const category = GAME_CATEGORIES.find((item) => item.id === selectedEvent.categoryId);
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.y > 150) {
@@ -63,18 +67,27 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
             {/* Scrollable Content */}
             <div className="h-full overflow-y-auto pb-[120px]">
               {/* Event Image */}
-              <div className="h-[240px] bg-gradient-to-br from-[#d1fae5] to-[#9ff5b7]" />
+              <div
+                className="h-[240px]"
+                style={{ backgroundImage: `linear-gradient(to bottom right, ${selectedEvent.imageFrom}, ${selectedEvent.imageTo})` }}
+              />
 
               {/* Event Details */}
               <div className="p-[20px]">
                 <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-[20px] mb-[16px]">
                   <div className="flex items-start justify-between mb-[16px]">
                     <h1 className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[24px] text-[#1a1c1c] flex-1">
-                      週末策略桌遊局
+                      {selectedEvent.title}
                     </h1>
-                    <div className="bg-[#d1fae5] px-[12px] py-[6px] rounded-[8px]">
-                      <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#006334]">
-                        Strategy
+                    <div
+                      className="px-[12px] py-[6px] rounded-[8px]"
+                      style={{ backgroundColor: category?.bgColor ?? '#d1fae5' }}
+                    >
+                      <span
+                        className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px]"
+                        style={{ color: category?.color ?? '#006334' }}
+                      >
+                        {category?.name ?? 'Strategy'}
                       </span>
                     </div>
                   </div>
@@ -85,7 +98,7 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
                         <path fill="#6f7a70" d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H9v6l5.25 3.15.75-1.23-4.5-2.67z"/>
                       </svg>
                       <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#3f4940]">
-                        今天 19:00 - 22:00
+                        {selectedEvent.timeRange}
                       </span>
                     </div>
 
@@ -94,7 +107,7 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
                         <path fill="#6f7a70" d="M10 0C6.13 0 3 3.13 3 7c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                       </svg>
                       <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#3f4940]">
-                        台北市大安區羅斯福路三段 283 巷
+                        {selectedEvent.locationAddress}
                       </span>
                     </div>
 
@@ -103,7 +116,7 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
                         <path fill="#6f7a70" d="M10 0C7.79 0 6 1.79 6 4c0 2.21 1.79 4 4 4s4-1.79 4-4c0-2.21-1.79-4-4-4zM10 10c-3.33 0-10 1.67-10 5v3h20v-3c0-3.33-6.67-5-10-5z"/>
                       </svg>
                       <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#3f4940]">
-                        還需 2 人 (共 4 人)
+                        {selectedEvent.participantText}
                       </span>
                     </div>
                   </div>
@@ -115,7 +128,7 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
                     活動說明
                   </h2>
                   <p className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940] leading-[20px]">
-                    歡迎喜歡策略遊戲的朋友一起來玩！我們會玩農家樂、璀璨寶石等經典策略遊戲。適合有基礎經驗的玩家，新手也歡迎（會提供教學）。
+                    {selectedEvent.description}
                   </p>
                 </div>
 
@@ -128,10 +141,10 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
                     <div className="size-[48px] rounded-full border-2 border-[#277d4a] bg-gradient-to-br from-[#277d4a] to-[#065f46]" />
                     <div>
                       <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#1a1c1c]">
-                        桌遊達人
+                        {selectedEvent.hostName}
                       </div>
                       <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#6f7a70]">
-                        已舉辦 15 場活動
+                        已舉辦 {selectedEvent.hostEventCount} 場活動
                       </div>
                     </div>
                   </div>
