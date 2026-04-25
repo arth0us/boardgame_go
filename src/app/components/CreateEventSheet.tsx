@@ -6,6 +6,7 @@ import { zhTW } from 'date-fns/locale';
 import { TimePicker } from './TimePicker';
 import { LocationMap } from './LocationMap';
 import { useEvents } from '../contexts/EventsContext';
+import { GAME_CATEGORIES } from '../constants/gameCategories';
 import 'react-day-picker/dist/style.css';
 
 interface CreateEventSheetProps {
@@ -43,12 +44,7 @@ export function CreateEventSheet({ isOpen, onClose, onEventCreated, editingEvent
     }
   }, [editingEvent, isOpen]);
 
-  const categories = [
-    { id: 'strategy', name: 'Strategy', color: '#00579A', bgColor: '#d3e4ff', icon: '🎯' },
-    { id: 'party', name: 'Party', color: '#B7131A', bgColor: '#ffdad6', icon: '🎉' },
-    { id: 'card', name: 'Card', color: '#006334', bgColor: '#9ff5b7', icon: '🃏' },
-    { id: 'classic', name: 'Classic', color: '#3f4940', bgColor: '#e2e2e2', icon: '🎲' },
-  ];
+  const categories = GAME_CATEGORIES;
 
   const userLocation = { lat: 25.0330, lng: 121.5450 }; // 台北市大安區
 
@@ -278,7 +274,7 @@ export function CreateEventSheet({ isOpen, onClose, onEventCreated, editingEvent
                     {/* Step 1: Time */}
                     {currentStep === 1 && (
                       <>
-                        
+
                         <div
                           className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] mb-[12px] flex justify-center overflow-hidden"
                           onPointerDown={(e) => e.stopPropagation()}

@@ -1,9 +1,11 @@
 import { PageLayout } from './PageLayout';
-
-import { useNavigate } from 'react-router';
+import { useState } from 'react';
+import { GAME_CATEGORIES } from '../constants/gameCategories';
 
 export function ProfilePage() {
-  const navigate = useNavigate();
+  const [showPreferenceOptions, setShowPreferenceOptions] = useState(false);
+  const [preferredCategoryId, setPreferredCategoryId] = useState<string>(GAME_CATEGORIES[0]?.id ?? '');
+  const preferredCategory = GAME_CATEGORIES.find((category) => category.id === preferredCategoryId);
 
   return (
     <PageLayout>
@@ -61,9 +63,50 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="p-[16px] border-b border-[#e7e5e4]">
-            <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940]">
-              偏好遊戲類型
-            </div>
+            <button
+              onClick={() => setShowPreferenceOptions((prev) => !prev)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940]">
+                偏好遊戲類型
+              </div>
+              <div className="flex items-center gap-[8px]">
+                {preferredCategory && (
+                  <span
+                    className="px-[8px] py-[4px] rounded-[4px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px]"
+                    style={{ backgroundColor: preferredCategory.bgColor, color: preferredCategory.color }}
+                  >
+                    {preferredCategory.icon} {preferredCategory.name}
+                  </span>
+                )}
+                <svg
+                  className={`size-[14px] transition-transform ${showPreferenceOptions ? 'rotate-180' : ''}`}
+                  fill="none"
+                  viewBox="0 0 14 14"
+                >
+                  <path fill="#6f7a70" d="M3 5L7 9L11 5H3Z" />
+                </svg>
+              </div>
+            </button>
+            {showPreferenceOptions && (
+              <div className="grid grid-cols-2 gap-[8px] mt-[12px]">
+                {GAME_CATEGORIES.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => {
+                      setPreferredCategoryId(category.id);
+                      setShowPreferenceOptions(false);
+                    }}
+                    className={`rounded-[8px] px-[10px] py-[10px] border-2 text-left font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] ${
+                      preferredCategoryId === category.id ? 'border-[#006334]' : 'border-[rgba(111,122,112,0.2)]'
+                    }`}
+                    style={{ backgroundColor: category.bgColor, color: category.color }}
+                  >
+                    <span>{category.icon} {category.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="p-[16px] border-b border-[#e7e5e4]">
             <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940]">
