@@ -1,0 +1,43 @@
+@layer components {
+  .rdp-custom {
+    --rdp-cell-size: 32px;
+    --rdp-accent-color: #006334;
+    --rdp-background-color: #d1fae5;
+    font-size: 14px;
+  }
+
+  .rdp-custom .rdp-day_selected {
+    background-color: #006334 !important;
+    color: white !important;
+    border-radius: 50%;
+    font-weight: 600;
+  }
+
+  .rdp-custom .rdp-day_selected:not([disabled]) {
+    background-color: #006334 !important;
+  }
+
+  .rdp-custom .rdp-day_today {
+    font-weight: bold;
+    color: #006334;
+  }
+
+  .rdp-custom .rdp-day:hover:not(.rdp-day_selected):not([disabled]) {
+    background-color: #f3f4f6;
+    border-radius: 50%;
+  }
+
+  .rdp-custom .rdp-button:focus-visible {
+    outline: 2px solid #006334;
+    outline-offset: 2px;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
