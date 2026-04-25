@@ -5,6 +5,7 @@ import { GAME_CATEGORIES } from '../constants/gameCategories';
 export function ProfilePage() {
   const [showPreferenceOptions, setShowPreferenceOptions] = useState(false);
   const [preferredCategoryId, setPreferredCategoryId] = useState<string>(GAME_CATEGORIES[0]?.id ?? '');
+  const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
   const preferredCategory = GAME_CATEGORIES.find((category) => category.id === preferredCategoryId);
 
   return (
@@ -109,8 +110,33 @@ export function ProfilePage() {
             )}
           </div>
           <div className="p-[16px] border-b border-[#e7e5e4]">
-            <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940]">
-              通知設定
+            <div className="flex items-center justify-between">
+              <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940]">
+                通知設定
+              </div>
+              <div className="flex items-center gap-[10px]">
+                <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#6f7a70]">
+                  {isNotificationEnabled ? '開啟' : '關閉'}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isNotificationEnabled}
+                  aria-label="通知設定開關"
+                  onClick={() => setIsNotificationEnabled((prev) => !prev)}
+                  className={`w-[46px] h-[26px] rounded-full border-2 transition-colors ${
+                    isNotificationEnabled
+                      ? 'bg-[#006334] border-[#006334]'
+                      : 'bg-[#e2e2e2] border-[#bfc9be]'
+                  }`}
+                >
+                  <span
+                    className={`block w-[18px] h-[18px] rounded-full bg-white transition-transform ${
+                      isNotificationEnabled ? 'translate-x-[22px]' : 'translate-x-[2px]'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
           <div className="p-[16px]">
