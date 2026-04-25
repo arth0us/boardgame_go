@@ -1,12 +1,19 @@
 import { PageLayout } from './PageLayout';
 import { useState } from 'react';
 import { GAME_CATEGORIES } from '../constants/gameCategories';
+import { useEvents } from '../contexts/EventsContext';
+import { useSocial } from '../contexts/SocialContext';
 
 export function ProfilePage() {
+  const { events } = useEvents();
+  const { friends } = useSocial();
   const [preferredCategoryId, setPreferredCategoryId] = useState<string>(GAME_CATEGORIES[0]?.id ?? '');
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
   const [onlineStatus, setOnlineStatus] = useState<'online' | 'offline' | 'playing'>('online');
   const preferredCategory = GAME_CATEGORIES.find((category) => category.id === preferredCategoryId) ?? GAME_CATEGORIES[0];
+  const joinedEventsCount = events.filter((event) => event.status === 'joined').length;
+  const hostingEventsCount = events.filter((event) => event.status === 'hosting').length;
+  const friendsCount = friends.length;
   const onlineStatusOptions = [
     { id: 'online' as const, label: '上線中', bgColor: '#d1fae5', color: '#065f46' },
     { id: 'offline' as const, label: '離線', bgColor: '#e8e8e8', color: '#6f7a70' },
@@ -29,7 +36,7 @@ export function ProfilePage() {
                 桌遊玩家
               </div>
               <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#6f7a70]">
-                已參與 12 場桌遊聚會
+                已參與 {joinedEventsCount} 場桌遊聚會
               </div>
             </div>
           </div>
@@ -39,7 +46,7 @@ export function ProfilePage() {
         <div className="grid grid-cols-3 gap-[12px]">
           <div className="bg-[#d1fae5] rounded-[8px] p-[16px] text-center">
             <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[24px] text-[#065f46] mb-[4px]">
-              12
+              {joinedEventsCount}
             </div>
             <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#065f46]">
               已參與
@@ -47,7 +54,7 @@ export function ProfilePage() {
           </div>
           <div className="bg-[#d1fae5] rounded-[8px] p-[16px] text-center">
             <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[24px] text-[#065f46] mb-[4px]">
-              5
+              {hostingEventsCount}
             </div>
             <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#065f46]">
               發起活動
@@ -55,7 +62,7 @@ export function ProfilePage() {
           </div>
           <div className="bg-[#d1fae5] rounded-[8px] p-[16px] text-center">
             <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[24px] text-[#065f46] mb-[4px]">
-              8
+              {friendsCount}
             </div>
             <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#065f46]">
               好友數

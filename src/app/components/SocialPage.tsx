@@ -1,30 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PageLayout } from './PageLayout';
 import { GAME_CATEGORIES } from '../constants/gameCategories';
 import { useEvents } from '../contexts/EventsContext';
-
-type FriendStatus = 'online' | 'offline' | 'playing';
-
-interface Friend {
-  id: number;
-  name: string;
-  status: FriendStatus;
-  categoryIds: string[];
-  joinedCount: number;
-  avatarFrom: string;
-  avatarTo: string;
-}
-
-const FRIENDS: Friend[] = [
-  { id: 1, name: '小明', status: 'online', categoryIds: ['strategy'], joinedCount: 18, avatarFrom: '#34d399', avatarTo: '#059669' },
-  { id: 2, name: '小華', status: 'playing', categoryIds: ['party', 'classic'], joinedCount: 12, avatarFrom: '#fb7185', avatarTo: '#e11d48' },
-  { id: 3, name: '阿強', status: 'offline', categoryIds: ['card'], joinedCount: 9, avatarFrom: '#60a5fa', avatarTo: '#2563eb' },
-  { id: 4, name: 'Sandy', status: 'online', categoryIds: ['classic'], joinedCount: 14, avatarFrom: '#a78bfa', avatarTo: '#7c3aed' },
-  { id: 5, name: 'Leo', status: 'playing', categoryIds: ['strategy', 'card'], joinedCount: 21, avatarFrom: '#f59e0b', avatarTo: '#d97706' },
-  { id: 6, name: 'Mia', status: 'online', categoryIds: ['party'], joinedCount: 16, avatarFrom: '#f472b6', avatarTo: '#db2777' },
-  { id: 7, name: 'Eric', status: 'offline', categoryIds: ['classic', 'strategy'], joinedCount: 11, avatarFrom: '#22d3ee', avatarTo: '#0891b2' },
-  { id: 8, name: 'Nina', status: 'playing', categoryIds: ['card', 'party'], joinedCount: 13, avatarFrom: '#4ade80', avatarTo: '#16a34a' },
-];
+import { FriendStatus, useSocial } from '../contexts/SocialContext';
 
 const STATUS_META: Record<FriendStatus, { label: string; bgColor: string; textColor: string; dotColor: string }> = {
   online: { label: '上線中', bgColor: '#d1fae5', textColor: '#065f46', dotColor: '#16a34a' },
@@ -34,12 +12,21 @@ const STATUS_META: Record<FriendStatus, { label: string; bgColor: string; textCo
 
 export function SocialPage() {
   const { events } = useEvents();
-  const [selectedFriendId, setSelectedFriendId] = useState<number>(FRIENDS[0]?.id ?? 1);
+  const { friends, friendInvites, acceptFriendInvite, ignoreFriendInvite } = useSocial();
+  const [topListTab, setTopListTab] = useState<'friends' | 'invites'>('friends');
+  const [selectedFriendId, setSelectedFriendId] = useState<number>(friends[0]?.id ?? 1);
   const [invitesByFriend, setInvitesByFriend] = useState<Record<number, number[]>>({});
 
-  const selectedFriend = FRIENDS.find((friend) => friend.id === selectedFriendId) ?? FRIENDS[0];
+  const selectedFriend = friends.find((friend) => friend.id === selectedFriendId) ?? friends[0] ?? null;
   const myHostEvents = events.filter((event) => event.status === 'hosting');
-  const selectedStatusMeta = STATUS_META[selectedFriend.status];
+  const selectedStatusMeta = selectedFriend ? STATUS_META[selectedFriend.status] : STATUS_META.offline;
+
+  useEffect(() => {
+    if (friends.length === 0) return;
+    if (!friends.some((friend) => friend.id === selectedFriendId)) {
+      setSelectedFriendId(friends[0].id);
+    }
+  }, [friends, selectedFriendId]);
 
   const handleInvite = (friendId: number, eventId: number) => {
     setInvitesByFriend((prev) => {
@@ -51,6 +38,18 @@ export function SocialPage() {
     });
   };
 
+  const handleAcceptFriendInvite = (inviteId: number) => {
+    const acceptedFriend = acceptFriendInvite(inviteId);
+    if (acceptedFriend) {
+      setSelectedFriendId(acceptedFriend.id);
+    }
+    setTopListTab('friends');
+  };
+
+  const handleIgnoreFriendInvite = (inviteId: number) => {
+    ignoreFriendInvite(inviteId);
+  };
+
   return (
     <PageLayout>
       <div className="size-full overflow-hidden bg-[#f9f9f9] p-[20px]">
@@ -60,55 +59,128 @@ export function SocialPage() {
               好友
             </h1>
             <p className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#6f7a70]">
-              點擊好友查看狀態、偏好類型並邀請加入你的活動
+              點擊好友查看狀態、偏好類型，並可處理好友邀請與活動邀請
             </p>
           </div>
 
-          <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] overflow-hidden h-[320px] shrink-0">
-            <div className="h-full overflow-y-auto">
-              {FRIENDS.map((friend) => {
-                const statusMeta = STATUS_META[friend.status];
-                const isSelected = friend.id === selectedFriendId;
-                const primaryCategory = GAME_CATEGORIES.find((cat) => cat.id === friend.categoryIds[0]);
-                return (
-                  <button
-                    key={friend.id}
-                    onClick={() => setSelectedFriendId(friend.id)}
-                    className={`w-full text-left p-[14px] border-b border-[#e7e5e4] last:border-b-0 ${
-                      isSelected ? 'bg-[#f0fdf4]' : 'bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-[12px]">
-                      <div
-                        className="size-[44px] rounded-full border-2 border-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.1)] shrink-0"
-                        style={{ backgroundImage: `linear-gradient(to bottom right, ${friend.avatarFrom}, ${friend.avatarTo})` }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-[8px] mb-[2px]">
-                          <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[15px] text-[#1a1c1c] truncate">
-                            {friend.name}
-                          </span>
-                          <span
-                            className="inline-flex items-center gap-[5px] px-[6px] py-[2px] rounded-[10px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[11px]"
-                            style={{ backgroundColor: statusMeta.bgColor, color: statusMeta.textColor }}
-                          >
-                            <span className="size-[6px] rounded-full" style={{ backgroundColor: statusMeta.dotColor }} />
-                            {statusMeta.label}
-                          </span>
+          <div className="shrink-0">
+            <div className="flex gap-[8px] mb-[8px]">
+              <button
+                onClick={() => setTopListTab('friends')}
+                className={`px-[14px] py-[8px] rounded-full font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] border-2 ${
+                  topListTab === 'friends'
+                    ? 'bg-[#277d4a] text-[#c9ffd3] border-[#006334]'
+                    : 'bg-white text-[#3f4940] border-[#d4d4d8]'
+                }`}
+              >
+                好友（{friends.length}）
+              </button>
+              <button
+                onClick={() => setTopListTab('invites')}
+                className={`px-[14px] py-[8px] rounded-full font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] border-2 ${
+                  topListTab === 'invites'
+                    ? 'bg-[#277d4a] text-[#c9ffd3] border-[#006334]'
+                    : 'bg-white text-[#3f4940] border-[#d4d4d8]'
+                }`}
+              >
+                好友邀請（{friendInvites.length}）
+              </button>
+            </div>
+
+            <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] overflow-hidden h-[320px]">
+              <div className="h-full overflow-y-auto">
+                {topListTab === 'friends' ? (
+                  friends.map((friend) => {
+                    const statusMeta = STATUS_META[friend.status];
+                    const isSelected = friend.id === selectedFriendId;
+                    const primaryCategory = GAME_CATEGORIES.find((cat) => cat.id === friend.categoryIds[0]);
+                    return (
+                      <button
+                        key={friend.id}
+                        onClick={() => setSelectedFriendId(friend.id)}
+                        className={`w-full text-left p-[14px] border-b border-[#e7e5e4] last:border-b-0 ${
+                          isSelected ? 'bg-[#f0fdf4]' : 'bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-[12px]">
+                          <div
+                            className="size-[44px] rounded-full border-2 border-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.1)] shrink-0"
+                            style={{ backgroundImage: `linear-gradient(to bottom right, ${friend.avatarFrom}, ${friend.avatarTo})` }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-[8px] mb-[2px]">
+                              <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[15px] text-[#1a1c1c] truncate">
+                                {friend.name}
+                              </span>
+                              <span
+                                className="inline-flex items-center gap-[5px] px-[6px] py-[2px] rounded-[10px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[11px]"
+                                style={{ backgroundColor: statusMeta.bgColor, color: statusMeta.textColor }}
+                              >
+                                <span className="size-[6px] rounded-full" style={{ backgroundColor: statusMeta.dotColor }} />
+                                {statusMeta.label}
+                              </span>
+                            </div>
+                            <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#6f7a70] truncate">
+                              {primaryCategory ? `${primaryCategory.icon} ${primaryCategory.name}` : '偏好未設定'} • 已參與 {friend.joinedCount} 場
+                            </div>
+                          </div>
                         </div>
-                        <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#6f7a70] truncate">
-                          {primaryCategory ? `${primaryCategory.icon} ${primaryCategory.name}` : '偏好未設定'} • 已參與 {friend.joinedCount} 場
+                      </button>
+                    );
+                  })
+                ) : friendInvites.length === 0 ? (
+                  <div className="h-full flex items-center justify-center p-[16px] text-center font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] text-[#6f7a70]">
+                    目前沒有新的好友邀請。
+                  </div>
+                ) : (
+                  <div className="p-[10px] space-y-[8px]">
+                    {friendInvites.map((invite) => {
+                      const primaryCategory = GAME_CATEGORIES.find((category) => category.id === invite.categoryIds[0]);
+                      return (
+                        <div
+                          key={invite.id}
+                          className="bg-[#fafaf9] rounded-[8px] border border-[rgba(111,122,112,0.2)] p-[10px]"
+                        >
+                          <div className="flex items-center gap-[10px] mb-[8px]">
+                            <div
+                              className="size-[36px] rounded-full border-2 border-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.1)] shrink-0"
+                              style={{ backgroundImage: `linear-gradient(to bottom right, ${invite.avatarFrom}, ${invite.avatarTo})` }}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] text-[#1a1c1c] truncate">
+                                {invite.name}
+                              </div>
+                              <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[11px] text-[#6f7a70] truncate">
+                                {primaryCategory ? `${primaryCategory.icon} ${primaryCategory.name}` : '偏好未設定'} • 共同好友 {invite.mutualCount} 位
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-[8px]">
+                            <button
+                              onClick={() => handleAcceptFriendInvite(invite.id)}
+                              className="px-[10px] py-[6px] rounded-[7px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] bg-[#006334] text-white"
+                            >
+                              接受
+                            </button>
+                            <button
+                              onClick={() => handleIgnoreFriendInvite(invite.id)}
+                              className="px-[10px] py-[6px] rounded-[7px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] bg-[#e8e8e8] text-[#6f7a70]"
+                            >
+                              忽略
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {selectedFriend && (
-            <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] p-[16px] flex-1 min-h-0 overflow-y-auto">
+          <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] p-[16px] flex-1 min-h-0 overflow-y-auto">
+            {selectedFriend ? (
+              <>
               <h2 className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[18px] text-[#1a1c1c] mb-[12px]">
                 {selectedFriend.name} 的資訊
               </h2>
@@ -189,8 +261,13 @@ export function SocialPage() {
                   </div>
                 )}
               </div>
-            </div>
-          )}
+              </>
+            ) : (
+              <div className="bg-[#f3f3f3] rounded-[8px] p-[12px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#6f7a70]">
+                目前沒有好友，先接受上方好友邀請吧。
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </PageLayout>
