@@ -4,6 +4,7 @@ import { zhTW } from 'date-fns/locale';
 
 export interface Event {
   id: number;
+  sourceEventId?: string;
   title: string;
   type: string;
   typeColor: string;

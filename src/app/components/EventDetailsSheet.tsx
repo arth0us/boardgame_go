@@ -1,7 +1,8 @@
 import { motion, AnimatePresence, PanInfo } from 'motion/react';
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { GAME_CATEGORIES } from '../constants/gameCategories';
 import { EXPLORE_DEMO_EVENTS } from '../constants/exploreDemoEvents';
+import { useEvents } from '../contexts/EventsContext';
 
 interface EventDetailsSheetProps {
   isOpen: boolean;
@@ -9,16 +10,88 @@ interface EventDetailsSheetProps {
   eventId: string;
 }
 
+const parseTimeRange = (timeRange: string) => {
+  const match = timeRange.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  if (!match) {
+    return {
+      startTime: { hour: 19, minute: 0 },
+      duration: { hour: 2, minute: 0 },
+    };
+  }
+
+  const startHour = Number(match[1]);
+  const startMinute = Number(match[2]);
+  const endHour = Number(match[3]);
+  const endMinute = Number(match[4]);
+
+  const startTotal = startHour * 60 + startMinute;
+  let endTotal = endHour * 60 + endMinute;
+  if (endTotal <= startTotal) {
+    endTotal += 24 * 60;
+  }
+
+  const durationMinutes = endTotal - startTotal;
+  return {
+    startTime: { hour: startHour, minute: startMinute },
+    duration: {
+      hour: Math.floor(durationMinutes / 60),
+      minute: durationMinutes % 60,
+    },
+  };
+};
+
+const parseNeededPlayers = (neededPlayers: string) => {
+  const match = neededPlayers.match(/(\d+)/);
+  return match ? Number(match[1]) : 2;
+};
+
+const parseMaxParticipants = (participantText: string) => {
+  const match = participantText.match(/共\s*(\d+)\s*人/);
+  return match ? Number(match[1]) : 4;
+};
+
 export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsSheetProps) {
   const [dragY, setDragY] = useState(0);
+  const { events, addEvent } = useEvents();
   const selectedEvent = EXPLORE_DEMO_EVENTS.find((event) => event.id === eventId) ?? EXPLORE_DEMO_EVENTS[0];
   const category = GAME_CATEGORIES.find((item) => item.id === selectedEvent.categoryId);
+  const isJoined = events.some((event) => event.sourceEventId === selectedEvent.id);
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.y > 150) {
       onClose();
     }
     setDragY(0);
+  };
+
+  const handleJoinEvent = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (isJoined) {
+      return;
+    }
+
+    const { startTime, duration } = parseTimeRange(selectedEvent.timeRange);
+    const maxParticipants = parseMaxParticipants(selectedEvent.participantText);
+    const neededPlayers = parseNeededPlayers(selectedEvent.neededPlayers);
+    const joinedPlayers = Math.max(maxParticipants - neededPlayers, 0);
+
+    addEvent({
+      sourceEventId: selectedEvent.id,
+      title: selectedEvent.title,
+      type: category?.name ?? 'Strategy',
+      typeColor: category?.bgColor ?? '#d1fae5',
+      categoryId: selectedEvent.categoryId,
+      location: selectedEvent.location,
+      locationAddress: selectedEvent.locationAddress,
+      date: new Date(),
+      startTime,
+      duration,
+      time: selectedEvent.time,
+      status: 'joined',
+      participants: `${joinedPlayers}/${maxParticipants} 人`,
+      maxParticipants,
+    });
+    onClose();
   };
 
   return (
@@ -155,16 +228,16 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
             {/* Floating Join Button */}
             <div className="absolute bottom-0 left-0 right-0 px-[20px] pb-[24px] bg-gradient-to-t from-[#f9f9f9] via-[#f9f9f9] to-transparent pt-[32px] pointer-events-none">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Handle join event
-                }}
-                className="w-full bg-[#006334] text-white py-[16px] rounded-[12px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[20px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.2)] flex items-center justify-center gap-[8px] pointer-events-auto"
+                onClick={handleJoinEvent}
+                disabled={isJoined}
+                className={`w-full py-[16px] rounded-[12px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[20px] shadow-[0px_4px_0px_0px_rgba(0,0,0,0.2)] flex items-center justify-center gap-[8px] pointer-events-auto ${
+                  isJoined ? 'bg-[#e8e8e8] text-[#6f7a70]' : 'bg-[#006334] text-white'
+                }`}
               >
                 <svg className="w-[20px] h-[20px]" fill="none" viewBox="0 0 20 20">
-                  <path fill="white" d="M10 0C9.44772 0 9 0.447715 9 1V9H1C0.447715 9 0 9.44772 0 10C0 10.5523 0.447715 11 1 11H9V19C9 19.5523 9.44772 20 10 20C10.5523 20 11 19.5523 11 19V11H19C19.5523 11 20 10.5523 20 10C20 9.44772 19.5523 9 19 9H11V1C11 0.447715 10.5523 0 10 0Z"/>
+                  <path fill="currentColor" d="M10 0C9.44772 0 9 0.447715 9 1V9H1C0.447715 9 0 9.44772 0 10C0 10.5523 0.447715 11 1 11H9V19C9 19.5523 9.44772 20 10 20C10.5523 20 11 19.5523 11 19V11H19C19.5523 11 20 10.5523 20 10C20 9.44772 19.5523 9 19 9H11V1C11 0.447715 10.5523 0 10 0Z"/>
                 </svg>
-                加入活動
+                {isJoined ? '已加入活動' : '加入活動'}
               </button>
             </div>
           </motion.div>
