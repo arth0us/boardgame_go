@@ -3,11 +3,10 @@ import { useState } from 'react';
 import { GAME_CATEGORIES } from '../constants/gameCategories';
 
 export function ProfilePage() {
-  const [showPreferenceOptions, setShowPreferenceOptions] = useState(false);
   const [preferredCategoryId, setPreferredCategoryId] = useState<string>(GAME_CATEGORIES[0]?.id ?? '');
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
   const [onlineStatus, setOnlineStatus] = useState<'online' | 'offline' | 'playing'>('online');
-  const preferredCategory = GAME_CATEGORIES.find((category) => category.id === preferredCategoryId);
+  const preferredCategory = GAME_CATEGORIES.find((category) => category.id === preferredCategoryId) ?? GAME_CATEGORIES[0];
   const onlineStatusOptions = [
     { id: 'online' as const, label: '上線中', bgColor: '#d1fae5', color: '#065f46' },
     { id: 'offline' as const, label: '離線', bgColor: '#e8e8e8', color: '#6f7a70' },
@@ -72,52 +71,32 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="p-[16px] border-b border-[#e7e5e4]">
-            <button
-              onClick={() => {
-                setShowPreferenceOptions((prev) => !prev);
-              }}
-              className="w-full flex items-center justify-between"
-            >
+            <div className="w-full flex items-center justify-between gap-[12px]">
               <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940]">
                 偏好遊戲類型
               </div>
-              <div className="flex items-center gap-[8px]">
-                {preferredCategory && (
-                  <span
-                    className="px-[8px] py-[4px] rounded-[4px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px]"
-                    style={{ backgroundColor: preferredCategory.bgColor, color: preferredCategory.color }}
-                  >
-                    {preferredCategory.icon} {preferredCategory.name}
-                  </span>
-                )}
+              <div className="relative">
+                <select
+                  value={preferredCategoryId}
+                  onChange={(event) => setPreferredCategoryId(event.target.value)}
+                  className="appearance-none rounded-[8px] border border-[rgba(111,122,112,0.2)] pl-[10px] pr-[28px] py-[8px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px]"
+                  style={{ backgroundColor: preferredCategory.bgColor, color: preferredCategory.color }}
+                >
+                  {GAME_CATEGORIES.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.icon} {category.name}
+                    </option>
+                  ))}
+                </select>
                 <svg
-                  className={`size-[14px] transition-transform ${showPreferenceOptions ? 'rotate-180' : ''}`}
+                  className="size-[14px] absolute right-[8px] top-1/2 -translate-y-1/2 pointer-events-none"
                   fill="none"
                   viewBox="0 0 14 14"
                 >
                   <path fill="#6f7a70" d="M3 5L7 9L11 5H3Z" />
                 </svg>
               </div>
-            </button>
-            {showPreferenceOptions && (
-              <div className="grid grid-cols-2 gap-[8px] mt-[12px]">
-                {GAME_CATEGORIES.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => {
-                      setPreferredCategoryId(category.id);
-                      setShowPreferenceOptions(false);
-                    }}
-                    className={`rounded-[8px] px-[10px] py-[10px] border-2 text-left font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] ${
-                      preferredCategoryId === category.id ? 'border-[#006334]' : 'border-[rgba(111,122,112,0.2)]'
-                    }`}
-                    style={{ backgroundColor: category.bgColor, color: category.color }}
-                  >
-                    <span>{category.icon} {category.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            </div>
           </div>
           <div className="p-[16px] border-b border-[#e7e5e4]">
             <div className="flex items-center justify-between">
