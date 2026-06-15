@@ -1,8 +1,9 @@
-import { motion, AnimatePresence, PanInfo } from 'motion/react';
-import { useState, type MouseEvent } from 'react';
+import { motion, AnimatePresence, type PanInfo } from 'motion/react';
+import { useState, type FormEvent, type MouseEvent } from 'react';
 import { GAME_CATEGORIES } from '../constants/gameCategories';
 import { EXPLORE_DEMO_EVENTS } from '../constants/exploreDemoEvents';
 import { useEvents } from '../contexts/EventsContext';
+import { findScheduleConflict, resolveDateFromTimeText } from '../utils/eventSchedule';
 
 interface EventDetailsSheetProps {
   isOpen: boolean;
@@ -23,14 +24,13 @@ const parseTimeRange = (timeRange: string) => {
   const startMinute = Number(match[2]);
   const endHour = Number(match[3]);
   const endMinute = Number(match[4]);
-
   const startTotal = startHour * 60 + startMinute;
   let endTotal = endHour * 60 + endMinute;
   if (endTotal <= startTotal) {
     endTotal += 24 * 60;
   }
-
   const durationMinutes = endTotal - startTotal;
+
   return {
     startTime: { hour: startHour, minute: startMinute },
     duration: {
@@ -46,31 +46,53 @@ const parseNeededPlayers = (neededPlayers: string) => {
 };
 
 const parseMaxParticipants = (participantText: string) => {
-  const match = participantText.match(/共\s*(\d+)\s*人/);
-  return match ? Number(match[1]) : 4;
+  const matches = participantText.match(/\d+/g);
+  return matches?.length ? Number(matches[matches.length - 1]) : 4;
+};
+
+const formatCommentTime = (date: Date) =>
+  `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+
+const isDemoEventEnded = (timeRange: string) => {
+  const { startTime, duration } = parseTimeRange(timeRange);
+  const end = new Date();
+  end.setHours(startTime.hour + duration.hour, startTime.minute + duration.minute, 0, 0);
+  return end < new Date();
 };
 
 export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsSheetProps) {
-  const [dragY, setDragY] = useState(0);
-  const { events, addEvent } = useEvents();
+  const [commentBody, setCommentBody] = useState('');
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const { events, comments, addEvent, addComment } = useEvents();
   const selectedEvent = EXPLORE_DEMO_EVENTS.find((event) => event.id === eventId) ?? EXPLORE_DEMO_EVENTS[0];
   const category = GAME_CATEGORIES.find((item) => item.id === selectedEvent.categoryId);
   const isJoined = events.some((event) => event.sourceEventId === selectedEvent.id);
+  const eventComments = comments
+    .filter((comment) => comment.eventId === selectedEvent.id)
+    .slice()
+    .sort((a, b) => Number(b.isAnnouncement) - Number(a.isAnnouncement) || a.createdAt.getTime() - b.createdAt.getTime());
+  const isEventEnded = isDemoEventEnded(selectedEvent.timeRange);
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.y > 150) {
       onClose();
     }
-    setDragY(0);
   };
 
   const handleJoinEvent = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    if (isJoined) {
+    if (isJoined) return;
+
+    const { startTime, duration } = parseTimeRange(selectedEvent.timeRange);
+    const date = resolveDateFromTimeText(selectedEvent.timeRange);
+    const conflict = findScheduleConflict(events, { date, startTime, duration });
+
+    if (conflict) {
+      setSnackbarMessage(`你在 ${conflict.timeRange} 已有活動，無法加入新的活動。`);
+      window.setTimeout(() => setSnackbarMessage(''), 4000);
       return;
     }
 
-    const { startTime, duration } = parseTimeRange(selectedEvent.timeRange);
     const maxParticipants = parseMaxParticipants(selectedEvent.participantText);
     const neededPlayers = parseNeededPlayers(selectedEvent.neededPlayers);
     const joinedPlayers = Math.max(maxParticipants - neededPlayers, 0);
@@ -78,27 +100,41 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
     addEvent({
       sourceEventId: selectedEvent.id,
       title: selectedEvent.title,
+      description: selectedEvent.description,
       type: category?.name ?? 'Strategy',
       typeColor: category?.bgColor ?? '#d1fae5',
       categoryId: selectedEvent.categoryId,
       location: selectedEvent.location,
       locationAddress: selectedEvent.locationAddress,
-      date: new Date(),
+      date,
       startTime,
       duration,
-      time: selectedEvent.time,
+      time: selectedEvent.timeRange,
       status: 'joined',
       participants: `${joinedPlayers}/${maxParticipants} 人`,
       maxParticipants,
     });
-    onClose();
+    setSnackbarMessage('');
+  };
+
+  const handleCommentSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const body = commentBody.trim();
+    if (!body || !isJoined || isEventEnded) return;
+
+    addComment({
+      eventId: selectedEvent.id,
+      authorId: 'me',
+      authorName: '我',
+      body,
+    });
+    setCommentBody('');
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -108,7 +144,6 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
             onClick={onClose}
           />
 
-          {/* Sheet */}
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
@@ -117,45 +152,37 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
             drag="y"
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.5 }}
-            onDrag={(e, info) => setDragY(info.offset.y)}
             onDragEnd={handleDragEnd}
             className="absolute inset-0 z-40 bg-[#f9f9f9] rounded-t-[24px] shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
           >
-            {/* Drag Handle */}
             <div className="sticky top-0 z-10 bg-[#fafaf9] rounded-t-[24px] pt-[12px] pb-[8px] border-b-2 border-[rgba(6,78,59,0.1)] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
               <div className="w-[40px] h-[4px] bg-[#d4d4d8] rounded-full mx-auto mb-[12px]" />
               <div className="flex items-center px-[16px]">
                 <button onClick={onClose} className="size-[30px] flex items-center justify-center">
-                  <svg className="size-full" fill="none" viewBox="0 0 30 0">
-                    <path fill="#78716C" d="M15 5L13.59 6.41L18.17 11H5v2h13.17l-4.58 4.59L15 19l7-7-7-7z" transform="rotate(180 15 15)" />
+                  <svg className="size-[20px]" fill="none" viewBox="0 0 20 20">
+                    <path fill="#78716C" d="M13 4L7 10L13 16L11.6 17.4L4.2 10L11.6 2.6L13 4Z" />
                   </svg>
                 </button>
-                <div className="flex-1 text-center font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#047857] uppercase tracking-[-0.4px]">
+                <div className="flex-1 text-center font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#047857]">
                   活動詳情
                 </div>
                 <div className="w-[30px]" />
               </div>
             </div>
 
-            {/* Scrollable Content */}
             <div className="h-full overflow-y-auto pb-[120px]">
-              {/* Event Image */}
               <div
                 className="h-[240px]"
                 style={{ backgroundImage: `linear-gradient(to bottom right, ${selectedEvent.imageFrom}, ${selectedEvent.imageTo})` }}
               />
 
-              {/* Event Details */}
               <div className="p-[20px]">
                 <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-[20px] mb-[16px]">
                   <div className="flex items-start justify-between mb-[16px]">
                     <h1 className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[24px] text-[#1a1c1c] flex-1">
                       {selectedEvent.title}
                     </h1>
-                    <div
-                      className="px-[12px] py-[6px] rounded-[8px]"
-                      style={{ backgroundColor: category?.bgColor ?? '#d1fae5' }}
-                    >
+                    <div className="px-[12px] py-[6px] rounded-[8px]" style={{ backgroundColor: category?.bgColor ?? '#d1fae5' }}>
                       <span
                         className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px]"
                         style={{ color: category?.color ?? '#006334' }}
@@ -165,50 +192,25 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
                     </div>
                   </div>
 
-                  <div className="space-y-[12px]">
-                    <div className="flex items-center gap-[12px]">
-                      <svg className="size-[20px]" fill="none" viewBox="0 0 20 20">
-                        <path fill="#6f7a70" d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H9v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-                      </svg>
-                      <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#3f4940]">
-                        {selectedEvent.timeRange}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-[12px]">
-                      <svg className="size-[20px]" fill="none" viewBox="0 0 20 20">
-                        <path fill="#6f7a70" d="M10 0C6.13 0 3 3.13 3 7c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                      </svg>
-                      <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#3f4940]">
-                        {selectedEvent.locationAddress}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-[12px]">
-                      <svg className="size-[20px]" fill="none" viewBox="0 0 20 20">
-                        <path fill="#6f7a70" d="M10 0C7.79 0 6 1.79 6 4c0 2.21 1.79 4 4 4s4-1.79 4-4c0-2.21-1.79-4-4-4zM10 10c-3.33 0-10 1.67-10 5v3h20v-3c0-3.33-6.67-5-10-5z"/>
-                      </svg>
-                      <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#3f4940]">
-                        {selectedEvent.participantText}
-                      </span>
-                    </div>
+                  <div className="space-y-[12px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[16px] text-[#3f4940]">
+                    <div>{selectedEvent.timeRange}</div>
+                    <div>{selectedEvent.locationAddress}</div>
+                    <div>{selectedEvent.participantText}</div>
                   </div>
                 </div>
 
-                {/* Description */}
                 <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-[20px] mb-[16px]">
                   <h2 className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[18px] text-[#1a1c1c] mb-[12px]">
-                    活動說明
+                    活動內文
                   </h2>
                   <p className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] text-[#3f4940] leading-[20px]">
                     {selectedEvent.description}
                   </p>
                 </div>
 
-                {/* Host */}
-                <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-[20px]">
+                <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-[20px] mb-[16px]">
                   <h2 className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[18px] text-[#1a1c1c] mb-[12px]">
-                    主揪
+                    主持人
                   </h2>
                   <div className="flex items-center gap-[12px]">
                     <div className="size-[48px] rounded-full border-2 border-[#277d4a] bg-gradient-to-br from-[#277d4a] to-[#065f46]" />
@@ -217,16 +219,111 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
                         {selectedEvent.hostName}
                       </div>
                       <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#6f7a70]">
-                        已舉辦 {selectedEvent.hostEventCount} 場活動
+                        舉辦過 {selectedEvent.hostEventCount} 場活動
                       </div>
                     </div>
                   </div>
                 </div>
+
+                <div className="bg-white rounded-[12px] border-2 border-[rgba(111,122,112,0.2)] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] p-[20px] mb-[16px]">
+                  <div className="flex items-center justify-between mb-[12px]">
+                    <h2 className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[18px] text-[#1a1c1c]">
+                      活動留言板
+                    </h2>
+                    <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[12px] text-[#6f7a70]">
+                      公開交流
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-[10px] mb-[14px]">
+                    {eventComments.length > 0 ? (
+                      eventComments.map((comment) => (
+                        <div
+                          key={comment.id}
+                          className={`rounded-[10px] p-[12px] border ${
+                            comment.isAnnouncement
+                              ? 'bg-[#fff7ed] border-[#f59e0b]'
+                              : 'bg-[#f3f4f6] border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-[4px]">
+                            <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] text-[#1a1c1c]">
+                              {comment.authorName}
+                            </span>
+                            <div className="flex items-center gap-[6px]">
+                              {comment.isAnnouncement && (
+                                <span className="px-[7px] py-[4px] rounded-[7px] bg-[#f59e0b] text-white font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[11px]">
+                                  公告
+                                </span>
+                              )}
+                              <span className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[11px] text-[#6f7a70]">
+                                {formatCommentTime(comment.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] text-[#3f4940] leading-[18px]">
+                            {comment.body}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-[10px] bg-[#f3f4f6] p-[12px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] text-[#6f7a70]">
+                        還沒有留言。加入活動後可以在這裡同步集合、遲到或臨時資訊。
+                      </div>
+                    )}
+                  </div>
+
+                  {isEventEnded ? (
+                    <div className="rounded-[10px] bg-[#f3f3f3] border border-[#d4d4d8] p-[12px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] text-[#6f7a70]">
+                      活動已結束，留言板已關閉。
+                    </div>
+                  ) : isJoined ? (
+                    <form onSubmit={handleCommentSubmit} className="flex flex-col gap-[8px]">
+                      <textarea
+                        value={commentBody}
+                        onChange={(event) => setCommentBody(event.target.value)}
+                        placeholder="留下集合、遲到或臨時資訊..."
+                        className="min-h-[84px] rounded-[10px] border-2 border-[rgba(111,122,112,0.2)] bg-[#f9f9f9] p-[12px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] leading-[18px] outline-none resize-none focus:border-[#006334]"
+                      />
+                      <button
+                        type="submit"
+                        disabled={commentBody.trim() === ''}
+                        className={`py-[10px] rounded-[10px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] ${
+                          commentBody.trim() === ''
+                            ? 'bg-[#e8e8e8] text-[#6f7a70]'
+                            : 'bg-[#006334] text-white shadow-[0px_3px_0px_0px_rgba(0,0,0,0.18)]'
+                        }`}
+                      >
+                        送出留言
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="rounded-[10px] bg-[#e8f7ee] border border-[#bfc9be] p-[12px] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] text-[#065f46]">
+                      加入活動後才能留言；交流會留在公共空間，避免一對一騷擾。
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Floating Join Button */}
             <div className="absolute bottom-0 left-0 right-0 px-[20px] pb-[24px] bg-gradient-to-t from-[#f9f9f9] via-[#f9f9f9] to-transparent pt-[32px] pointer-events-none">
+              <AnimatePresence>
+                {snackbarMessage && (
+                  <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 12 }}
+                    transition={{ duration: 0.12 }}
+                    style={{ backgroundColor: '#1f2937' }}
+                    className="mb-[12px] rounded-[10px] px-[14px] py-[12px] shadow-[0px_8px_24px_rgba(0,0,0,0.24)] font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[13px] leading-[18px] text-white"
+                    role="alert"
+                  >
+                    <div className="text-[14px] mb-[2px]">活動時間重疊</div>
+                    <div className="text-white/90">{snackbarMessage}</div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <button
                 onClick={handleJoinEvent}
                 disabled={isJoined}
@@ -234,9 +331,6 @@ export function EventDetailsSheet({ isOpen, onClose, eventId }: EventDetailsShee
                   isJoined ? 'bg-[#e8e8e8] text-[#6f7a70]' : 'bg-[#006334] text-white'
                 }`}
               >
-                <svg className="w-[20px] h-[20px]" fill="none" viewBox="0 0 20 20">
-                  <path fill="currentColor" d="M10 0C9.44772 0 9 0.447715 9 1V9H1C0.447715 9 0 9.44772 0 10C0 10.5523 0.447715 11 1 11H9V19C9 19.5523 9.44772 20 10 20C10.5523 20 11 19.5523 11 19V11H19C19.5523 11 20 10.5523 20 10C20 9.44772 19.5523 9 19 9H11V1C11 0.447715 10.5523 0 10 0Z"/>
-                </svg>
                 {isJoined ? '已加入活動' : '加入活動'}
               </button>
             </div>

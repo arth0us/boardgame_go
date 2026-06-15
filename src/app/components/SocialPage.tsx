@@ -3,6 +3,7 @@ import { PageLayout } from './PageLayout';
 import { GAME_CATEGORIES } from '../constants/gameCategories';
 import { useEvents } from '../contexts/EventsContext';
 import { FriendStatus, useSocial } from '../contexts/SocialContext';
+import { formatEventDisplayTime } from '../utils/eventSchedule';
 
 const STATUS_META: Record<FriendStatus, { label: string; bgColor: string; textColor: string; dotColor: string }> = {
   online: { label: '上線中', bgColor: '#d1fae5', textColor: '#065f46', dotColor: '#16a34a' },
@@ -67,7 +68,7 @@ export function SocialPage() {
             <div className="flex gap-[8px] mb-[8px]">
               <button
                 onClick={() => setTopListTab('friends')}
-                className={`px-[14px] py-[8px] rounded-full font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] border-2 ${
+                className={`h-[40px] px-[14px] py-0 rounded-full font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] border-2 ${
                   topListTab === 'friends'
                     ? 'bg-[#277d4a] text-[#c9ffd3] border-[#006334]'
                     : 'bg-white text-[#3f4940] border-[#d4d4d8]'
@@ -77,7 +78,7 @@ export function SocialPage() {
               </button>
               <button
                 onClick={() => setTopListTab('invites')}
-                className={`px-[14px] py-[8px] rounded-full font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] border-2 ${
+                className={`h-[40px] px-[14px] py-0 rounded-full font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[14px] border-2 ${
                   topListTab === 'invites'
                     ? 'bg-[#277d4a] text-[#c9ffd3] border-[#006334]'
                     : 'bg-white text-[#3f4940] border-[#d4d4d8]'
@@ -241,7 +242,7 @@ export function SocialPage() {
                               {event.title}
                             </div>
                             <div className="font-['WenQuanYi_Zen_Hei:Medium',sans-serif] text-[11px] text-[#6f7a70] truncate">
-                              {event.time} • {event.location}
+                              {formatEventDisplayTime(event)} • {event.location}
                             </div>
                           </div>
                           <button
